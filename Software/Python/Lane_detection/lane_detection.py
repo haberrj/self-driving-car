@@ -8,8 +8,9 @@ import os, sys
 import re, math
 import cv2
 import numpy as np
-from tqdm import tqdm_notebook
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+from shapely.geometry import LineString, Point
+
 
 def ReadImage(image_path):
     image = cv2.imread(image_path)
@@ -114,6 +115,32 @@ def SeparateLines(image, lines):
     right_x_end = int(poly_right(min_y))
     return [left_x_start, max_y, left_x_end, min_y], [right_x_start, max_y, right_x_end, min_y]    
 
+def FindIntersectionPoint(lines):
+    lineA = lines[0][0]
+    lineB = lines[0][1]
+    xA = (lineA[0],lineA[1])
+    yA = (lineA[2],lineA[3])
+    xB = (lineB[0], lineB[1])
+    yB = (lineB[2], lineB[3])
+    # uses shapely
+    line1 = LineString([xA, yA])
+    line2 = LineString([xB, yB])
+    int_pt = line1.intersection(line2)
+    try:
+        poi = int_pt.x, int_pt.y
+    except AttributeError:
+        poi = 0, 0
+    return poi
+
+def CompareIntersectionPoint(image, lines):
+    height = image.shape[0]
+    width = image.shape[1]
+    poi = FindIntersectionPoint(lines)
+    if(poi[1] > (height*0.57)):
+        return False
+    else:
+        return True
+
 def ApplyAll(image):
     vertices = GetImageVertices(image)
     canny = EdgeDetection(image)
@@ -128,7 +155,6 @@ def ApplyAll(image):
         maxLineGap=190
     )
     adjusted_lines = SeparateLines(image, lines)
-    # print(adjusted_lines)
     return adjusted_lines
 
 def GetAverageLaneLine(lane_lines, count):
@@ -149,7 +175,6 @@ def PlayVideo(video):
     cap = cv2.VideoCapture(video)
     while(cap.isOpened()):
         _, frame = cap.read()
-        # print(frame)
         try:
             if(cnt < 10):
                 average_lane_lines.append(ApplyAll(frame))
@@ -160,14 +185,17 @@ def PlayVideo(video):
                 average_lane_lines.pop(0) # remove the first value
         except ValueError:
             continue
-        average = GetAverageLaneLine(average_lane_lines, cnt)
-        print(average)
-        try:
-            combo_image = DrawLines(frame, average)
-        # except ValueError:
-        #     combo_image = frame
         except TypeError:
+            continue
+        average = GetAverageLaneLine(average_lane_lines, cnt)
+        if(CompareIntersectionPoint(frame, average) == False):
             combo_image = frame
+        else:
+            try:
+                combo_image = DrawLines(frame, average)
+                print(average)
+            except TypeError:
+                combo_image = frame
         cv2.imshow("results", combo_image)
         if(cv2.waitKey(1) & 0xFF == ord('q')):
             break
