@@ -98,10 +98,16 @@ def SeparateLines(image, lines):
             ry1.append(y1)
             ry2.append(y2)
     
-    right_line_x = [(sum(rx1)/len(rx1)), (sum(rx2)/len(rx2))] # will get an average
-    right_line_y = [(sum(ry1)/len(ry1)), (sum(ry2)/len(ry2))]
-    left_line_x = [(sum(lx1)/len(lx1)), (sum(lx2)/len(lx2))] # will get an average
-    left_line_y = [(sum(ly1)/len(ly1)), (sum(ly2)/len(ly2))]
+    try:
+        right_line_x = [(sum(rx1)/len(rx1)), (sum(rx2)/len(rx2))] # will get an average
+        right_line_y = [(sum(ry1)/len(ry1)), (sum(ry2)/len(ry2))]
+        left_line_x = [(sum(lx1)/len(lx1)), (sum(lx2)/len(lx2))] # will get an average
+        left_line_y = [(sum(ly1)/len(ly1)), (sum(ly2)/len(ly2))]
+    except ZeroDivisionError:
+        right_line_x = [0, 1000] # will get an average
+        right_line_y = [0, 1000]
+        left_line_x = [0, 1000] # will get an average
+        left_line_y = [0, 1000]
     
     poly_left = np.poly1d(np.polyfit(
         left_line_y,
@@ -140,7 +146,7 @@ def ApplyAll(image):
     combo_image = DrawLines(image, adjusted_lines)
     return combo_image
 
-image = ReadImage('autobahn_fahren.png')
+image = ReadImage('/home/ronhaber/Documents/Self_Driving/Lane_Detection/fahren_ohne_rechte_seite.png')
 combo_image = ApplyAll(image)
 plt.figure()
 plt.imshow(combo_image)

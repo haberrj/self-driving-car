@@ -76,7 +76,7 @@ def SeparateLines(image, lines):
                 slope = (y2 - y1) / (x2 - x1)
             except ZeroDivisionError:
                 slope = 0 # disregard an invalid line
-        if(math.fabs(slope) < 0.5):
+        if(math.fabs(slope) < 0.4):
             continue
         if(slope <=0): # left group since the slope is negative
             lx1.append(x1)
@@ -94,10 +94,10 @@ def SeparateLines(image, lines):
         left_line_x = [(sum(lx1)/len(lx1)), (sum(lx2)/len(lx2))] # will get an average
         left_line_y = [(sum(ly1)/len(ly1)), (sum(ly2)/len(ly2))]
     except ZeroDivisionError:
-        right_line_x = [0, 0] # will get an average
-        right_line_y = [0, 0]
-        left_line_x = [0, 0] # will get an average
-        left_line_y = [0, 0]
+        right_line_x = [0, 1000]
+        right_line_y = [0, 1000]
+        left_line_x = [0, 1000]
+        left_line_y = [0, 1000]
 
     poly_left = np.poly1d(np.polyfit(
         left_line_y,
@@ -165,7 +165,11 @@ def GetAverageLaneLine(lane_lines, count):
             right[i] += line[0][i]
             left[i] += line[1][i]
     new_right = [int(val / count) for val in right]
+    if(new_right[0] > 800):
+        new_right = [0,0,0,0]
     new_left = [int(val / count) for val in left]
+    if(new_left[0] < 1200):
+        new_left = [0,0,0,0]
     output = [[new_right, new_left]]
     return output
 
@@ -176,7 +180,7 @@ def PlayVideo(video):
     while(cap.isOpened()):
         _, frame = cap.read()
         try:
-            if(cnt < 10):
+            if(cnt < 30):
                 average_lane_lines.append(ApplyAll(frame))
                 cnt += 1
                 continue
@@ -188,14 +192,18 @@ def PlayVideo(video):
         except TypeError:
             continue
         average = GetAverageLaneLine(average_lane_lines, cnt)
-        if(CompareIntersectionPoint(frame, average) == False):
+        if(average[0][0][0] > 750):
+            average[0][0] = [0,0,0,0]
+        if(average[0][1][0] < 1150):
+            average[0][1] = [0,1000,0,1000]
+        # if(CompareIntersectionPoint(frame, average) == False):
+            # combo_image = frame
+        # else:
+        try:
+            combo_image = DrawLines(frame, average)
+            print(average)
+        except TypeError:
             combo_image = frame
-        else:
-            try:
-                combo_image = DrawLines(frame, average)
-                print(average)
-            except TypeError:
-                combo_image = frame
         cv2.imshow("results", combo_image)
         if(cv2.waitKey(1) & 0xFF == ord('q')):
             break
