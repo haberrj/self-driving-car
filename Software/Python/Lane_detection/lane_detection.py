@@ -60,11 +60,14 @@ def DrawLines(img, lines, color=[255, 0, 0], thickness=5):
 def SeparateLines(image, lines):
     min_y = int(image.shape[0] * 0.476)
     max_y = (image.shape[0] * 77)
-    max_x = image.shape[1]
-    left_line_x = [0, 0]
-    left_line_y = [0, 0]
-    right_line_x = [max_x, 0]
-    right_line_y = [max_x, 0]
+    rx1 = []
+    rx2 = []
+    ry1 = []
+    ry2 = []
+    lx1 = []
+    lx2 = []
+    ly1 = []
+    ly2 = []
 
     for line in lines:
         for x1, y1, x2, y2 in line:
@@ -75,13 +78,25 @@ def SeparateLines(image, lines):
         if(math.fabs(slope) < 0.5):
             continue
         if(slope <=0): # left group since the slope is negative
-            if(x1 > left_line_x[0]):
-                left_line_x = [x1, x2]
-                left_line_y = [y1, y2]
+            lx1.append(x1)
+            lx2.append(x2)
+            ly1.append(y1)
+            ly2.append(y2)
         else: # right group
-            if(x1 < right_line_x[0]): # Get the inner most line of the lane
-                right_line_x = [x1, x2]
-                right_line_y = [y1, y2]
+            rx1.append(x1)
+            rx2.append(x2)
+            ry1.append(y1)
+            ry2.append(y2)
+    try:
+        right_line_x = [(sum(rx1)/len(rx1)), (sum(rx2)/len(rx2))] # will get an average
+        right_line_y = [(sum(ry1)/len(ry1)), (sum(ry2)/len(ry2))]
+        left_line_x = [(sum(lx1)/len(lx1)), (sum(lx2)/len(lx2))] # will get an average
+        left_line_y = [(sum(ly1)/len(ly1)), (sum(ly2)/len(ly2))]
+    except ZeroDivisionError:
+        right_line_x = [0, 0] # will get an average
+        right_line_y = [0, 0]
+        left_line_x = [0, 0] # will get an average
+        left_line_y = [0, 0]
 
     poly_left = np.poly1d(np.polyfit(
         left_line_y,
@@ -97,10 +112,7 @@ def SeparateLines(image, lines):
     left_x_end = int(poly_left(min_y))
     right_x_start = int(poly_right(max_y)) 
     right_x_end = int(poly_right(min_y))
-    return [[
-        [left_x_start, max_y, left_x_end, min_y],
-        [right_x_start, max_y, right_x_end, min_y],
-    ]]    
+    return [left_x_start, max_y, left_x_end, min_y], [right_x_start, max_y, right_x_end, min_y]    
 
 def ApplyAll(image):
     vertices = GetImageVertices(image)
@@ -116,29 +128,47 @@ def ApplyAll(image):
         maxLineGap=190
     )
     adjusted_lines = SeparateLines(image, lines)
-    print(adjusted_lines)
-    combo_image = DrawLines(image, adjusted_lines)
-    return combo_image
+    # print(adjusted_lines)
+    return adjusted_lines
+
+def GetAverageLaneLine(lane_lines, count):
+    right = [0, 0, 0, 0]
+    left = [0, 0, 0, 0]
+    for line in lane_lines:
+        for i in range(0,4):
+            right[i] += line[0][i]
+            left[i] += line[1][i]
+    new_right = [int(val / count) for val in right]
+    new_left = [int(val / count) for val in left]
+    output = [[new_right, new_left]]
+    return output
 
 def PlayVideo(video):
+    cnt = 0
+    average_lane_lines = []
     cap = cv2.VideoCapture(video)
     while(cap.isOpened()):
         _, frame = cap.read()
         # print(frame)
-        combo_image = ApplyAll(frame)
-        # try:
-        #     canny_image = CannyEdgeDetection(frame)
-        # except:
-        #     break
-        # cropped_image = RegionOfInterest(canny_image)
-        # lines = cv2.HoughLinesP(cropped_image, 1, np.pi/180, 30, minLineLength=40, maxLineGap=200)
-        # averaged_lines = AverageSlopeIntercept(frame, lines)
-        # if(averaged_lines == [False, False]):
-        #     continue
-        # line_image = DisplayLines(frame, averaged_lines)
-        # combo_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
+        try:
+            if(cnt < 10):
+                average_lane_lines.append(ApplyAll(frame))
+                cnt += 1
+                continue
+            else:
+                average_lane_lines.append(ApplyAll(frame))
+                average_lane_lines.pop(0) # remove the first value
+        except ValueError:
+            continue
+        average = GetAverageLaneLine(average_lane_lines, cnt)
+        print(average)
+        try:
+            combo_image = DrawLines(frame, average)
+        # except ValueError:
+        #     combo_image = frame
+        except TypeError:
+            combo_image = frame
         cv2.imshow("results", combo_image)
-        # waits 1 ms b/w frames
         if(cv2.waitKey(1) & 0xFF == ord('q')):
             break
     cap.release()

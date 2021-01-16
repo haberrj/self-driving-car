@@ -60,11 +60,14 @@ def DrawLines(img, lines, color=[255, 0, 0], thickness=5):
 def SeparateLines(image, lines):
     min_y = int(image.shape[0] * 0.476)
     max_y = (image.shape[0] * 77)
-    max_x = image.shape[1]
-    left_line_x = [0, 0]
-    left_line_y = [0, 0]
-    right_line_x = [max_x, 0]
-    right_line_y = [max_x, 0]
+    rx1 = []
+    rx2 = []
+    ry1 = []
+    ry2 = []
+    lx1 = []
+    lx2 = []
+    ly1 = []
+    ly2 = []
 
     for line in lines:
         for x1, y1, x2, y2 in line:
@@ -75,22 +78,31 @@ def SeparateLines(image, lines):
         if(math.fabs(slope) < 0.5):
             continue
         if(slope <=0): # left group since the slope is negative
-            if(x1 > left_line_x[0]):
-                left_line_x = [x1, x2]
-                left_line_y = [y1, y2]
+            # if(x1 > left_line_x[0]):
+            #     left_line_x = [x1, x2]
+            #     left_line_y = [y1, y2]
             # left_line_x.extend([x1, x2])
             # left_line_y.extend([y1, y2])
+            lx1.append(x1)
+            lx2.append(x2)
+            ly1.append(y1)
+            ly2.append(y2)
         else: # right group
-            if(x1 < right_line_x[0]):
-                right_line_x = [x1, x2]
-                right_line_y = [y1, y2]
+            # if(x1 < right_line_x[0]):
+            #     right_line_x = [x1, x2]
+            #     right_line_y = [y1, y2]
             # right_line_x.extend([x1, x2])
             # right_line_y.extend([y1, y2])
+            rx1.append(x1)
+            rx2.append(x2)
+            ry1.append(y1)
+            ry2.append(y2)
     
-    # print(left_line_x)
-    # print(left_line_y)
-    # print(right_line_x)
-    # print(right_line_y)
+    right_line_x = [(sum(rx1)/len(rx1)), (sum(rx2)/len(rx2))] # will get an average
+    right_line_y = [(sum(ry1)/len(ry1)), (sum(ry2)/len(ry2))]
+    left_line_x = [(sum(lx1)/len(lx1)), (sum(lx2)/len(lx2))] # will get an average
+    left_line_y = [(sum(ly1)/len(ly1)), (sum(ly2)/len(ly2))]
+    
     poly_left = np.poly1d(np.polyfit(
         left_line_y,
         left_line_x,
